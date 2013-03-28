@@ -1,0 +1,7 @@
+/* *****************************************************************************
+	Alloy.JS ==VERSION==
+	A javascript library to dynamic binding.
+
+	Copyright 2013 Diullei Gomes and other contributors
+***************************************************************************** */
+
