@@ -38,10 +38,14 @@ exports.AlloyJs.parser = (function(AlloyJs, $wnd, $doc){
 	}
 
 	Parser.prototype.parseString = function(str) {
+
+		if(!$al.utils.isString(str))
+			return str;
+
 		var tokens = [];
 		var pattern = /\$\{.+?\}/gi
 		var code = str.match(pattern);	
-		
+
 		if(code) {
 			for(var i = 0; i < code.length; i++) {
 				var id = AlloyJs.utils.guid();

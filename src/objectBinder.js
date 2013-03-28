@@ -35,7 +35,8 @@ exports.AlloyJs.ob = (function(AlloyJs, $wnd, $doc){
 					var codeGetterSetter = 'self.prop("' + prop + '", function() { return getter(cache[prop]) || cache[prop]; }, function(__value){ cache[prop] = __value; setter(__value); }, ' + target + ')';//target + '.__defineGetter__("' + prop + '", function() { return getter(cache[prop]) || cache[prop]; } );';
 					eval(codeGetterSetter);
 				} else {
-					throw new Error('can\'t bind var declaration objects');	
+					// TODO:
+					//throw new Error('can\'t bind var declaration objects');	
 				}
 			} else {
 				throw new Error('can\'t bind undefined object');

@@ -2,19 +2,23 @@
 // Core
 
 exports.AlloyJs.applyStr = function(str, ctx){
+	var self = this;
 	ctx = ctx || window;
 	var parsedStrResult = this.parser.parseString(str);
 
-	if(parsedStrResult.tokens.length > 0) {
-		var parsedStr = parsedStrResult.str;
+	if(parsedStrResult.tokens) {
+		if(parsedStrResult.tokens.length > 0) {
+			var parsedStr = parsedStrResult.str;
 
-		for(var i = 0; i < parsedStrResult.tokens.length; i++) {
-			var token = parsedStrResult.tokens[i];
-			eval('var val = ctx.' + token.token);
-			parsedStr = parsedStr.replace(token.id, val);
+			for(var i = 0; i < parsedStrResult.tokens.length; i++) {
+				var token = parsedStrResult.tokens[i];
+				console.log('var val = self.utils.evaluate( "' + token.token + '", ctx) ');
+				eval('var val = self.utils.evaluate( "' + token.token + '", ctx) ');
+				parsedStr = parsedStr.replace(token.id, val);
+			}
+
+			return parsedStr;
 		}
-
-		return parsedStr;
 	}
 
 	return str;
@@ -39,8 +43,8 @@ exports.AlloyJs.apply = function(el, ctx){
 
 		var el = self.hq.get('_' + bind.html_id);
 
-		eval('el.textContent = self.applyStr(ctx.' + bind.property + ')');
-		eval('el.innerText = self.applyStr(ctx.' + bind.property + ')');
+		eval('el.textContent = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) )');
+		eval('el.innerText = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) )');
 
 		eval('self.ob.bind("' + bind.property + '", '
 			+ 'function(value){ return value; }, '

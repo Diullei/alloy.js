@@ -308,6 +308,11 @@ exports.AlloyJs.utils = (function(AlloyJs, $wnd, $doc){
 
 	function Utils(){}
 
+	Utils.prototype.isString = function(obj) {
+		var toString = Object.prototype.toString;
+		return toString.call(obj) == '[object String]';
+	};
+
 	Utils.prototype.guid = function() {
 		return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
 		    var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
@@ -316,7 +321,10 @@ exports.AlloyJs.utils = (function(AlloyJs, $wnd, $doc){
 	};
 
 	Utils.prototype.evaluate = function(code, ctx) {
-		
+		ctx = ctx || window;
+		var result = null;
+		eval('with (ctx) { result = ' + code + ' }');
+		return result;
 	};
 
 	return new Utils();
@@ -414,10 +422,14 @@ exports.AlloyJs.parser = (function(AlloyJs, $wnd, $doc){
 	}
 
 	Parser.prototype.parseString = function(str) {
+
+		if(!$al.utils.isString(str))
+			return str;
+
 		var tokens = [];
 		var pattern = /\$\{.+?\}/gi
 		var code = str.match(pattern);	
-		
+
 		if(code) {
 			for(var i = 0; i < code.length; i++) {
 				var id = AlloyJs.utils.guid();
@@ -472,7 +484,8 @@ exports.AlloyJs.ob = (function(AlloyJs, $wnd, $doc){
 					var codeGetterSetter = 'self.prop("' + prop + '", function() { return getter(cache[prop]) || cache[prop]; }, function(__value){ cache[prop] = __value; setter(__value); }, ' + target + ')';//target + '.__defineGetter__("' + prop + '", function() { return getter(cache[prop]) || cache[prop]; } );';
 					eval(codeGetterSetter);
 				} else {
-					throw new Error('can\'t bind var declaration objects');	
+					// TODO:
+					//throw new Error('can\'t bind var declaration objects');	
 				}
 			} else {
 				throw new Error('can\'t bind undefined object');
@@ -489,19 +502,23 @@ exports.AlloyJs.ob = (function(AlloyJs, $wnd, $doc){
 // Core
 
 exports.AlloyJs.applyStr = function(str, ctx){
+	var self = this;
 	ctx = ctx || window;
 	var parsedStrResult = this.parser.parseString(str);
 
-	if(parsedStrResult.tokens.length > 0) {
-		var parsedStr = parsedStrResult.str;
+	if(parsedStrResult.tokens) {
+		if(parsedStrResult.tokens.length > 0) {
+			var parsedStr = parsedStrResult.str;
 
-		for(var i = 0; i < parsedStrResult.tokens.length; i++) {
-			var token = parsedStrResult.tokens[i];
-			eval('var val = ctx.' + token.token);
-			parsedStr = parsedStr.replace(token.id, val);
+			for(var i = 0; i < parsedStrResult.tokens.length; i++) {
+				var token = parsedStrResult.tokens[i];
+				console.log('var val = self.utils.evaluate( "' + token.token + '", ctx) ');
+				eval('var val = self.utils.evaluate( "' + token.token + '", ctx) ');
+				parsedStr = parsedStr.replace(token.id, val);
+			}
+
+			return parsedStr;
 		}
-
-		return parsedStr;
 	}
 
 	return str;
@@ -526,8 +543,8 @@ exports.AlloyJs.apply = function(el, ctx){
 
 		var el = self.hq.get('_' + bind.html_id);
 
-		eval('el.textContent = self.applyStr(ctx.' + bind.property + ')');
-		eval('el.innerText = self.applyStr(ctx.' + bind.property + ')');
+		eval('el.textContent = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) )');
+		eval('el.innerText = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) )');
 
 		eval('self.ob.bind("' + bind.property + '", '
 			+ 'function(value){ return value; }, '

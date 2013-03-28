@@ -1,4 +1,4 @@
-function regexEqual(actual, expr){
+function regexEqual(actual, expr) {
 	if(actual.match(expr)) {
 		ok(true);
 	} else {
@@ -150,4 +150,12 @@ test( "should bind a prop13 object to #el_prop13 element and render the value wi
 	$al.apply($al.oq.get('el_prop13'));
 
   	regexEqual($al.hq.get('el_prop13').innerHTML, /hello <i><span id="(.+)">hello prop10\*\-prop11\*\-prop12\*<\/span>!<\/i>/ig);
+});
+
+prop14 = ["a", "b", "c"];
+
+test( "should bind a prop14 object to #el_prop14 element and evaluate the value", function() {
+	$al.apply($al.oq.get('el_prop14'));
+
+  	regexEqual($al.hq.get('el_prop14').innerHTML, /hello <i><span id="(.+)">3<\/span>!<\/i>/ig);
 });
