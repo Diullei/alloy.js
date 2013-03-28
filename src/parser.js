@@ -37,6 +37,25 @@ exports.AlloyJs.parser = (function(AlloyJs, $wnd, $doc){
 		}
 	}
 
+	Parser.prototype.parseString = function(str) {
+		var tokens = [];
+		var pattern = /\$\{.+?\}/gi
+		var code = str.match(pattern);	
+		
+		if(code) {
+			for(var i = 0; i < code.length; i++) {
+				var id = AlloyJs.utils.guid();
+				tokens.push({
+					token: code[i].substr(2, code[i].length - 3),
+					id: id
+				});
+				str = str.replace(code[i], id);
+			}
+		}
+
+		return {str: str, tokens: tokens };
+	}
+
 	return new Parser();
 
 })(exports.AlloyJs, $wnd, $doc);

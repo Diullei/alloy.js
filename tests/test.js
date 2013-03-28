@@ -1,3 +1,11 @@
+function regexEqual(actual, expr){
+	if(actual.match(expr)) {
+		ok(true);
+	} else {
+		equal(actual, expr);
+	}
+}
+
 module('HtmlQuery');
 
 test( "should get element by id", function() {
@@ -108,7 +116,7 @@ prop6 = 'prop6';
 test( "should bind a prop6 object to #el_prop6 element", function() {
 	$al.apply($al.oq.get('el_prop6'));
 
-  	ok( $al.hq.get('el_prop6').innerHTML.match(/hello <i><span id="(.+)">prop6<\/span>!<\/i>/ig) );
+  	regexEqual($al.hq.get('el_prop6').innerHTML, /hello <i><span id="(.+)">prop6<\/span>!<\/i>/ig);
 });
 
 prop7 = 'prop7';
@@ -118,17 +126,28 @@ test( "should bind a prop7 object to #el_prop7 element and change the value", fu
 
 	prop7 = prop7 + ' changed';
 
-  	ok( $al.hq.get('el_prop7').innerHTML.match(/hello <i><span id="(.+)">prop7 changed<\/span>!<\/i>/ig) );
+  	regexEqual($al.hq.get('el_prop7').innerHTML, /hello <i><span id="(.+)">prop7 changed<\/span>!<\/i>/ig);
 });
 
-prop8 = 'prop8';
+prop8 ='prop8';
 prop9 = 'prop9';
 
 test( "should bind a prop8 and prop9 object to #el_prop8 element", function() {
 	$al.apply($al.oq.get('el_prop8'));
-  	ok( $al.hq.get('el_prop8').innerHTML.match(/hello <i><span id="(.+)">prop8<\/span>!<\/i><span id="(.+)">prop9<\/span>/ig) );
+  	regexEqual($al.hq.get('el_prop8').innerHTML, /hello <i><span id="(.+)">prop8<\/span>!<\/i><span id="(.+)">prop9<\/span>/ig);
   	prop8 = 'foo';
-  	ok( $al.hq.get('el_prop8').innerHTML.match(/hello <i><span id="(.+)">foo<\/span>!<\/i><span id="(.+)">prop9<\/span>/ig) );
+  	regexEqual($al.hq.get('el_prop8').innerHTML, /hello <i><span id="(.+)">foo<\/span>!<\/i><span id="(.+)">prop9<\/span>/ig);
   	prop9 = 'bar';
-  	ok( $al.hq.get('el_prop8').innerHTML.match(/hello <i><span id="(.+)">foo<\/span>!<\/i><span id="(.+)">bar<\/span>/ig) );
+  	regexEqual($al.hq.get('el_prop8').innerHTML, /hello <i><span id="(.+)">foo<\/span>!<\/i><span id="(.+)">bar<\/span>/ig);
+});
+
+prop10 = 'prop10*';
+prop11 = 'prop11*';
+prop12 = 'prop12*';
+prop13 = 'hello ${prop10}-${prop11}-${prop12}';
+
+test( "should bind a prop13 object to #el_prop13 element and render the value with template string", function() {
+	$al.apply($al.oq.get('el_prop13'));
+
+  	regexEqual($al.hq.get('el_prop13').innerHTML, /hello <i><span id="(.+)">hello prop10\*\-prop11\*\-prop12\*<\/span>!<\/i>/ig);
 });

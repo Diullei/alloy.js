@@ -313,7 +313,11 @@ exports.AlloyJs.utils = (function(AlloyJs, $wnd, $doc){
 		    var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
 		    return v.toString(16);
 		});
-	};		
+	};
+
+	Utils.prototype.evaluate = function(code, ctx) {
+		
+	};
 
 	return new Utils();
 
@@ -409,6 +413,25 @@ exports.AlloyJs.parser = (function(AlloyJs, $wnd, $doc){
 		}
 	}
 
+	Parser.prototype.parseString = function(str) {
+		var tokens = [];
+		var pattern = /\$\{.+?\}/gi
+		var code = str.match(pattern);	
+		
+		if(code) {
+			for(var i = 0; i < code.length; i++) {
+				var id = AlloyJs.utils.guid();
+				tokens.push({
+					token: code[i].substr(2, code[i].length - 3),
+					id: id
+				});
+				str = str.replace(code[i], id);
+			}
+		}
+
+		return {str: str, tokens: tokens };
+	}
+
 	return new Parser();
 
 })(exports.AlloyJs, $wnd, $doc);
@@ -464,6 +487,26 @@ exports.AlloyJs.ob = (function(AlloyJs, $wnd, $doc){
 })(exports.AlloyJs, $wnd, $doc);
 
 // Core
+
+exports.AlloyJs.applyStr = function(str, ctx){
+	ctx = ctx || window;
+	var parsedStrResult = this.parser.parseString(str);
+
+	if(parsedStrResult.tokens.length > 0) {
+		var parsedStr = parsedStrResult.str;
+
+		for(var i = 0; i < parsedStrResult.tokens.length; i++) {
+			var token = parsedStrResult.tokens[i];
+			eval('var val = ctx.' + token.token);
+			parsedStr = parsedStr.replace(token.id, val);
+		}
+
+		return parsedStr;
+	}
+
+	return str;
+}
+
 exports.AlloyJs.apply = function(el, ctx){
 	var self = this;
 	ctx = ctx || window;
@@ -481,18 +524,18 @@ exports.AlloyJs.apply = function(el, ctx){
 	for(var i = 0; i < self.binds.length; i++){
 		var bind = self.binds[i];
 
+		var el = self.hq.get('_' + bind.html_id);
+
+		eval('el.textContent = self.applyStr(ctx.' + bind.property + ')');
+		eval('el.innerText = self.applyStr(ctx.' + bind.property + ')');
+
 		eval('self.ob.bind("' + bind.property + '", '
 			+ 'function(value){ return value; }, '
-			+ 'function( value ){ var el = self.hq.get("_' + bind.html_id + '"); el.textContent = value; el.innerText = value; } );');
-
-		var el = self.hq.get('_' + bind.html_id);
-		eval('el.textContent = ' + bind.property);	
-		eval('el.innerText = ' + bind.property);
+			+ 'function( value ){ var el = self.hq.get("_' + bind.html_id + '"); el.textContent = self.applyStr(value); el.innerText = self.applyStr(value); }, ctx );');
 	}
 }
 
 function init() {
-	console.log('init')
 	var inits = $al.hq.getByAttribute('data-al-init');
 	for(var i = 0; i < inits.length; i++) {
 		$al.apply(inits[i]);

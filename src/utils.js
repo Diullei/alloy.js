@@ -9,7 +9,11 @@ exports.AlloyJs.utils = (function(AlloyJs, $wnd, $doc){
 		    var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
 		    return v.toString(16);
 		});
-	};		
+	};
+
+	Utils.prototype.evaluate = function(code, ctx) {
+		
+	};
 
 	return new Utils();
 
