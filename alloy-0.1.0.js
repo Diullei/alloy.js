@@ -492,11 +492,12 @@ exports.AlloyJs.apply = function(el, ctx){
 }
 
 function init() {
+	console.log('init')
 	var inits = $al.hq.getByAttribute('data-al-init');
 	for(var i = 0; i < inits.length; i++) {
 		$al.apply(inits[i]);
 	}
 }
-window.onload = init;
+window.addEventListener("load", init, false);
 
 })(window, window.document);
