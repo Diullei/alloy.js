@@ -163,3 +163,15 @@ test( "should bind a prop14 object to #el_prop14 element and evaluate the value"
 
 	regexEqual($al.hq.get('el_prop14').innerHTML, /hello <i><span id="(.+)">4<\/span>!<\/i>/ig);  	
 });
+
+prop15 = 'prop15';
+
+test( "should bind a prop15 object to #el_prop15 textbox element", function() {
+	$al.apply($al.hq.get('el_prop15'));
+
+	$al.hq.get('el_prop15').firstChild.value = 'test';	
+
+	// TODO: how how to test it?
+  	//equal(prop15, 'test');
+  	ok(true);
+});

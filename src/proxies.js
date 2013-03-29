@@ -30,6 +30,10 @@ function ArrayProxy(handler, original) {
    		eval('self.'+fn+' = function() { var value = self.original.'+fn+'.apply(self.original, arguments); handler(); return value; };');
    	});
 
+   	 self.getArray = function(){
+   	 	return self.original;
+   	 }
+
 	Object.defineProperty(this, 'length', {
 	    get: function(){ return self.original.length; },
 	    set: function(value){ self.original.length = value; }

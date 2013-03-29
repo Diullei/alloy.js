@@ -35,7 +35,21 @@ exports.AlloyJs.ob = (function(AlloyJs, $wnd, $doc){
 			eval('var targetObject = ' + target);
 			if(propObject != undefined) {
 				if($al.utils.isArray(targetObject)) {
-					eval(target + ' = createArrayProxy(id, setter, targetObject, ctx)');
+					eval('cache[prop] = ' + target);
+
+					var isThisObj = false;
+					eval('isThisObj = delete ' + target);
+
+					if(isThisObj) {
+						(function(){
+							var proxy = createArrayProxy(id, setter, targetObject, ctx);
+							var codeGetterSetter = 'self.prop("' + target.split('.')[target.split('.').length - 1] + '", function() { return getter(proxy) || proxy; }, function(__value){ }, ' + target.substr(0, target.lastIndexOf('.')) + ')';
+							eval(codeGetterSetter);
+						})();
+					} else {
+						// TODO:
+					}
+
 				} else {
 					eval('cache[prop] = ' + target + '.' + prop);
 

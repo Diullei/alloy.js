@@ -23,18 +23,72 @@ exports.AlloyJs.parser = (function(AlloyJs, $wnd, $doc){
 		return result;
 	};
 
-	Parser.prototype.extractProperty = function(tmpl) {
-		AlloyJs.binds = [];
+	function parseContent(data, text) {
 		var pattern = /\{\{.+?\}\}/gi
-		var code = tmpl.match(pattern);	
+		var code = text.match(pattern);	
 		if(code) {
 			for(var i = 0; i < code.length; i++) {
-				AlloyJs.binds.push({
+				data.binds.push({
+					type: 'content',
 					property: code[i].substr(2, code[i].length - 4),
 					html_id: AlloyJs.utils.guid()
 				});
 			}
 		}
+	}
+
+	function parseAttributes(id, data, attrib, content) {
+		if(attrib == 'data-al-bind') {
+			console.log(content.trim());
+			data.binds.push({
+				type: 'al-bind',
+				property: content.trim(),
+				html_id: id
+			});
+			return true;
+		}
+		return false;
+	}
+
+	Parser.prototype.extractProperty = function(tmpl) {
+		AlloyJs.binds = [];
+
+		var data = { binds: []};
+
+		var parsedHtml = $al.parser.exec(
+			tmpl, {
+			start: function(out, tag, attrs, unary ) {
+				var id = AlloyJs.utils.guid();
+				var handled = false;
+
+			    out.text += "<" + tag;
+
+			    for ( var i = 0; i < attrs.length; i++ ) {
+			    	handled = parseAttributes(id, data, attrs[i].name, attrs[i].escaped);
+				    out.text += " " + attrs[i].name + '="' + attrs[i].escaped + '"';
+				}
+			 
+				if(handled) {
+					out.text += ' id="_' + id + '"';
+				}
+
+			    out.text += (unary ? "/" : "") + ">";
+			},
+			end: function(out, tag ) {
+			    out.text += "</" + tag + ">";
+			},
+			chars: function(out, text ) {
+				parseContent(data, text);
+			    out.text += text;
+			},
+			comment: function(out, text ) {
+			    out.text += "<!--" + text + "-->";
+			}
+		});
+
+		AlloyJs.binds = data.binds;
+
+		return parsedHtml.text;
 	}
 
 	Parser.prototype.parseString = function(str) {

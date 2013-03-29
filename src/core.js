@@ -49,31 +49,41 @@ exports.AlloyJs.apply = function(el, ctx) {
 	ctx = ctx || window;
 	var html = el.innerHTML;
 
-	self.parser.extractProperty(html);
+	html = self.parser.extractProperty(html);
+	el.innerHTML = html;
 
-	for(var i = 0; i < self.binds.length; i++){
+	for(var i = 0; i < self.binds.length; i++) {
 		var bind = self.binds[i];
-		html = html.replace(new RegExp('\{\{' + bind.property + '\}\}'), '<span id="_' + bind.html_id + '"></span>');
-		eval('pubSub.on(ctx, bind.html_id, function(id, value){ '
-			+ 'var el = self.hq.get("_" + id); '
-			+ 'el.textContent = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) ); '
-			+ 'el.innerText = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) ); '
-		+ ' });');
+
+		if(bind.type == 'content') {
+			html = html.replace(new RegExp('\{\{' + bind.property + '\}\}'), '<span id="_' + bind.html_id + '"></span>');
+			eval('pubSub.on(ctx, bind.html_id, function(id, value){ '
+				+ 'var el = self.hq.get("_" + id); '
+				+ 'el.textContent = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) ); '
+				+ 'el.innerText = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) ); '
+			+ ' });');
+		}
 	}
 
 	el.innerHTML = html;
 
-	for(var i = 0; i < self.binds.length; i++){
+	for(var i = 0; i < self.binds.length; i++) {
 		var bind = self.binds[i];
 
-		var el = self.hq.get('_' + bind.html_id);
+		if(bind.type == 'content') {
+			var el = self.hq.get('_' + bind.html_id);
 
-		eval('el.textContent = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) )');
-		eval('el.innerText = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) )');
+			eval('el.textContent = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) )');
+			eval('el.innerText = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) )');
 
-		eval('self.ob.bind("' + bind.property + '", '
-			+ 'function(value){ return value; }, '
-			+ 'function( value ){ pubSub.trigger(ctx, "' + bind.html_id + '", value); }, ctx );');
+			eval('self.ob.bind("' + bind.property + '", '
+				+ 'function(value){ return value; }, '
+				+ 'function( value ){ pubSub.trigger(ctx, "' + bind.html_id + '", value); }, ctx );');
+
+		} else if(bind.type == 'al-bind') {
+			var el = self.hq.get('_' + bind.html_id);
+			eval('el.addEventListener("change", function(){ with(ctx) {  ' + bind.property + ' = this.value; } });');
+		}
 	}
 }
 

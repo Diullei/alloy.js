@@ -5,8 +5,8 @@
 	 * http://erik.eae.net/simplehtmlparser/simplehtmlparser.js
 	 */
 
-	// Regular Expressions for parsing tags and attributes
-	var startTag = /^<([-A-Za-z0-9_]+)((?:\s+\w+(?:\s*=\s*(?:(?:"[^"]*")|(?:'[^']*')|[^>\s]+))?)*)\s*(\/?)>/,
+// Regular Expressions for parsing tags and attributes
+	var startTag = /^<([-A-Za-z0-9_]+)((?:\s+[\w\-]+(?:\s*=\s*(?:(?:"[^"]*")|(?:'[^']*')|[^>\s]+))?)*)\s*(\/?)>/,
 		endTag = /^<\/([-A-Za-z0-9_]+)[^>]*>/,
 		attr = /([-A-Za-z0-9_]+)(?:\s*=\s*(?:(?:"((?:\\.|[^"])*)")|(?:'((?:\\.|[^'])*)')|([^>\s]+)))?/g;
 		
@@ -84,7 +84,7 @@
 				}
 
 			} else {
-				html = html.replace(new RegExp("(.*)<\/" + stack.last() + "[^>]*>"), function(all, text){
+				html = html.replace(new RegExp("^((?:.|\n)*?)<\/" + stack.last() + "[^>]*>"), function(all, text){
 					text = text.replace(/<!--(.*?)-->/g, "$1")
 						.replace(/<!\[CDATA\[(.*?)]]>/g, "$1");
 
@@ -97,9 +97,14 @@
 				parseEndTag( "", stack.last() );
 			}
 
-			if ( html == last )
+
+			if ( html == last ) {
+				//console.log(last);
 				throw "Parse Error: " + html;
-			last = html;
+			}
+
+			//if ( html != last )
+				last = html;
 		}
 		
 		// Clean up any remaining tags
@@ -178,8 +183,16 @@
 					results += " " + attrs[i].name + '="' + attrs[i].escaped + '"';
 		
 				results += (unary ? "/" : "") + ">";
+
+				if ( special[ tag ] ) {
+					results += '<![CDATA[';
+				}
 			},
 			end: function( tag ) {
+				if ( special[ tag ] ) {
+				    results += ']]>';
+				}
+
 				results += "</" + tag + ">";
 			},
 			chars: function( text ) {
@@ -246,16 +259,14 @@
 				// its construction
 				if ( one[ tagName ] ) {
 					curParentNode = one[ tagName ];
-					if ( !unary ) {
-						elems.push( curParentNode );
-					}
 					return;
 				}
 			
 				var elem = doc.createElement( tagName );
 				
-				for ( var attr in attrs )
+				for ( var attr in attrs ) {
 					elem.setAttribute( attrs[ attr ].name, attrs[ attr ].value );
+				}
 				
 				if ( structure[ tagName ] && typeof one[ structure[ tagName ] ] != "boolean" )
 					one[ structure[ tagName ] ].appendChild( elem );

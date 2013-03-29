@@ -12,8 +12,8 @@
 	 * http://erik.eae.net/simplehtmlparser/simplehtmlparser.js
 	 */
 
-	// Regular Expressions for parsing tags and attributes
-	var startTag = /^<([-A-Za-z0-9_]+)((?:\s+\w+(?:\s*=\s*(?:(?:"[^"]*")|(?:'[^']*')|[^>\s]+))?)*)\s*(\/?)>/,
+// Regular Expressions for parsing tags and attributes
+	var startTag = /^<([-A-Za-z0-9_]+)((?:\s+[\w\-]+(?:\s*=\s*(?:(?:"[^"]*")|(?:'[^']*')|[^>\s]+))?)*)\s*(\/?)>/,
 		endTag = /^<\/([-A-Za-z0-9_]+)[^>]*>/,
 		attr = /([-A-Za-z0-9_]+)(?:\s*=\s*(?:(?:"((?:\\.|[^"])*)")|(?:'((?:\\.|[^'])*)')|([^>\s]+)))?/g;
 		
@@ -91,7 +91,7 @@
 				}
 
 			} else {
-				html = html.replace(new RegExp("(.*)<\/" + stack.last() + "[^>]*>"), function(all, text){
+				html = html.replace(new RegExp("^((?:.|\n)*?)<\/" + stack.last() + "[^>]*>"), function(all, text){
 					text = text.replace(/<!--(.*?)-->/g, "$1")
 						.replace(/<!\[CDATA\[(.*?)]]>/g, "$1");
 
@@ -104,9 +104,14 @@
 				parseEndTag( "", stack.last() );
 			}
 
-			if ( html == last )
+
+			if ( html == last ) {
+				//console.log(last);
 				throw "Parse Error: " + html;
-			last = html;
+			}
+
+			//if ( html != last )
+				last = html;
 		}
 		
 		// Clean up any remaining tags
@@ -185,8 +190,16 @@
 					results += " " + attrs[i].name + '="' + attrs[i].escaped + '"';
 		
 				results += (unary ? "/" : "") + ">";
+
+				if ( special[ tag ] ) {
+					results += '<![CDATA[';
+				}
 			},
 			end: function( tag ) {
+				if ( special[ tag ] ) {
+				    results += ']]>';
+				}
+
 				results += "</" + tag + ">";
 			},
 			chars: function( text ) {
@@ -253,16 +266,14 @@
 				// its construction
 				if ( one[ tagName ] ) {
 					curParentNode = one[ tagName ];
-					if ( !unary ) {
-						elems.push( curParentNode );
-					}
 					return;
 				}
 			
 				var elem = doc.createElement( tagName );
 				
-				for ( var attr in attrs )
+				for ( var attr in attrs ) {
 					elem.setAttribute( attrs[ attr ].name, attrs[ attr ].value );
+				}
 				
 				if ( structure[ tagName ] && typeof one[ structure[ tagName ] ] != "boolean" )
 					one[ structure[ tagName ] ].appendChild( elem );
@@ -410,18 +421,72 @@ exports.AlloyJs.parser = (function(AlloyJs, $wnd, $doc){
 		return result;
 	};
 
-	Parser.prototype.extractProperty = function(tmpl) {
-		AlloyJs.binds = [];
+	function parseContent(data, text) {
 		var pattern = /\{\{.+?\}\}/gi
-		var code = tmpl.match(pattern);	
+		var code = text.match(pattern);	
 		if(code) {
 			for(var i = 0; i < code.length; i++) {
-				AlloyJs.binds.push({
+				data.binds.push({
+					type: 'content',
 					property: code[i].substr(2, code[i].length - 4),
 					html_id: AlloyJs.utils.guid()
 				});
 			}
 		}
+	}
+
+	function parseAttributes(id, data, attrib, content) {
+		if(attrib == 'data-al-bind') {
+			console.log(content.trim());
+			data.binds.push({
+				type: 'al-bind',
+				property: content.trim(),
+				html_id: id
+			});
+			return true;
+		}
+		return false;
+	}
+
+	Parser.prototype.extractProperty = function(tmpl) {
+		AlloyJs.binds = [];
+
+		var data = { binds: []};
+
+		var parsedHtml = $al.parser.exec(
+			tmpl, {
+			start: function(out, tag, attrs, unary ) {
+				var id = AlloyJs.utils.guid();
+				var handled = false;
+
+			    out.text += "<" + tag;
+
+			    for ( var i = 0; i < attrs.length; i++ ) {
+			    	handled = parseAttributes(id, data, attrs[i].name, attrs[i].escaped);
+				    out.text += " " + attrs[i].name + '="' + attrs[i].escaped + '"';
+				}
+			 
+				if(handled) {
+					out.text += ' id="_' + id + '"';
+				}
+
+			    out.text += (unary ? "/" : "") + ">";
+			},
+			end: function(out, tag ) {
+			    out.text += "</" + tag + ">";
+			},
+			chars: function(out, text ) {
+				parseContent(data, text);
+			    out.text += text;
+			},
+			comment: function(out, text ) {
+			    out.text += "<!--" + text + "-->";
+			}
+		});
+
+		AlloyJs.binds = data.binds;
+
+		return parsedHtml.text;
 	}
 
 	Parser.prototype.parseString = function(str) {
@@ -482,6 +547,10 @@ function ArrayProxy(handler, original) {
    		eval('self.'+fn+' = function() { var value = self.original.'+fn+'.apply(self.original, arguments); handler(); return value; };');
    	});
 
+   	 self.getArray = function(){
+   	 	return self.original;
+   	 }
+
 	Object.defineProperty(this, 'length', {
 	    get: function(){ return self.original.length; },
 	    set: function(value){ self.original.length = value; }
@@ -526,7 +595,21 @@ exports.AlloyJs.ob = (function(AlloyJs, $wnd, $doc){
 			eval('var targetObject = ' + target);
 			if(propObject != undefined) {
 				if($al.utils.isArray(targetObject)) {
-					eval(target + ' = createArrayProxy(id, setter, targetObject, ctx)');
+					eval('cache[prop] = ' + target);
+
+					var isThisObj = false;
+					eval('isThisObj = delete ' + target);
+
+					if(isThisObj) {
+						(function(){
+							var proxy = createArrayProxy(id, setter, targetObject, ctx);
+							var codeGetterSetter = 'self.prop("' + target.split('.')[target.split('.').length - 1] + '", function() { return getter(proxy) || proxy; }, function(__value){ }, ' + target.substr(0, target.lastIndexOf('.')) + ')';
+							eval(codeGetterSetter);
+						})();
+					} else {
+						// TODO:
+					}
+
 				} else {
 					eval('cache[prop] = ' + target + '.' + prop);
 
@@ -602,31 +685,41 @@ exports.AlloyJs.apply = function(el, ctx) {
 	ctx = ctx || window;
 	var html = el.innerHTML;
 
-	self.parser.extractProperty(html);
+	html = self.parser.extractProperty(html);
+	el.innerHTML = html;
 
-	for(var i = 0; i < self.binds.length; i++){
+	for(var i = 0; i < self.binds.length; i++) {
 		var bind = self.binds[i];
-		html = html.replace(new RegExp('\{\{' + bind.property + '\}\}'), '<span id="_' + bind.html_id + '"></span>');
-		eval('pubSub.on(ctx, bind.html_id, function(id, value){ '
-			+ 'var el = self.hq.get("_" + id); '
-			+ 'el.textContent = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) ); '
-			+ 'el.innerText = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) ); '
-		+ ' });');
+
+		if(bind.type == 'content') {
+			html = html.replace(new RegExp('\{\{' + bind.property + '\}\}'), '<span id="_' + bind.html_id + '"></span>');
+			eval('pubSub.on(ctx, bind.html_id, function(id, value){ '
+				+ 'var el = self.hq.get("_" + id); '
+				+ 'el.textContent = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) ); '
+				+ 'el.innerText = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) ); '
+			+ ' });');
+		}
 	}
 
 	el.innerHTML = html;
 
-	for(var i = 0; i < self.binds.length; i++){
+	for(var i = 0; i < self.binds.length; i++) {
 		var bind = self.binds[i];
 
-		var el = self.hq.get('_' + bind.html_id);
+		if(bind.type == 'content') {
+			var el = self.hq.get('_' + bind.html_id);
 
-		eval('el.textContent = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) )');
-		eval('el.innerText = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) )');
+			eval('el.textContent = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) )');
+			eval('el.innerText = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) )');
 
-		eval('self.ob.bind("' + bind.property + '", '
-			+ 'function(value){ return value; }, '
-			+ 'function( value ){ pubSub.trigger(ctx, "' + bind.html_id + '", value); }, ctx );');
+			eval('self.ob.bind("' + bind.property + '", '
+				+ 'function(value){ return value; }, '
+				+ 'function( value ){ pubSub.trigger(ctx, "' + bind.html_id + '", value); }, ctx );');
+
+		} else if(bind.type == 'al-bind') {
+			var el = self.hq.get('_' + bind.html_id);
+			eval('el.addEventListener("change", function(){ with(ctx) {  ' + bind.property + ' = this.value; } });');
+		}
 	}
 }
 
