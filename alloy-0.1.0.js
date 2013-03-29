@@ -524,7 +524,7 @@ exports.AlloyJs.ob = (function(AlloyJs, $wnd, $doc){
 
 			eval('var propObject = ' + target + '.' + prop);
 			eval('var targetObject = ' + target);
-			if(propObject) {
+			if(propObject != undefined) {
 				if($al.utils.isArray(targetObject)) {
 					eval(target + ' = createArrayProxy(id, setter, targetObject, ctx)');
 				} else {
@@ -631,11 +631,14 @@ exports.AlloyJs.apply = function(el, ctx) {
 }
 
 
+
 function init() {
-	var inits = $al.hq.getByAttribute('data-al-init');
-	for(var i = 0; i < inits.length; i++) {
-		$al.apply(inits[i]);
-	}
+	setTimeout( function() {
+		var inits = $al.hq.getByAttribute('data-al-init');
+		for(var i = 0; i < inits.length; i++) {
+			$al.apply(inits[i]);
+		}
+	}, 50);
 }
 window.addEventListener("load", init, false);
 

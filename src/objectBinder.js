@@ -33,7 +33,7 @@ exports.AlloyJs.ob = (function(AlloyJs, $wnd, $doc){
 
 			eval('var propObject = ' + target + '.' + prop);
 			eval('var targetObject = ' + target);
-			if(propObject) {
+			if(propObject != undefined) {
 				if($al.utils.isArray(targetObject)) {
 					eval(target + ' = createArrayProxy(id, setter, targetObject, ctx)');
 				} else {
