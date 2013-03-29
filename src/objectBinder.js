@@ -6,6 +6,12 @@ exports.AlloyJs.ob = (function(AlloyJs, $wnd, $doc){
 
 	var cache = {};
 
+	function createArrayProxy(expression, callback, oldObject, ctx) {
+		var newArray = null;
+		eval('with(ctx) { newArray = new ArrayProxy(function(){callback('+expression+')}, oldObject); }');
+		return newArray;
+	}
+
 	ObjectBinder.prototype.prop = function(id, getter, setter, ctx) {
 		ctx = ctx || window;
 
@@ -25,18 +31,23 @@ exports.AlloyJs.ob = (function(AlloyJs, $wnd, $doc){
 			var target = ('ctx.' + id).substr(0, ('ctx.' + id).lastIndexOf('.'));
 			var prop = parts[parts.length - 1];
 
-			if(target + '.' + prop) {
-				eval('cache[prop] = ' + target + '.' + prop);
-
-				var isThisObj = false;
-				eval('isThisObj = delete ' + target + '.' + prop);
-
-				if(isThisObj) {
-					var codeGetterSetter = 'self.prop("' + prop + '", function() { return getter(cache[prop]) || cache[prop]; }, function(__value){ cache[prop] = __value; setter(__value); }, ' + target + ')';//target + '.__defineGetter__("' + prop + '", function() { return getter(cache[prop]) || cache[prop]; } );';
-					eval(codeGetterSetter);
+			eval('var propObject = ' + target + '.' + prop);
+			eval('var targetObject = ' + target);
+			if(propObject) {
+				if($al.utils.isArray(targetObject)) {
+					eval(target + ' = createArrayProxy(id, setter, targetObject, ctx)');
 				} else {
-					// TODO:
-					//throw new Error('can\'t bind var declaration objects');	
+					eval('cache[prop] = ' + target + '.' + prop);
+
+					var isThisObj = false;
+					eval('isThisObj = delete ' + target + '.' + prop);
+
+					if(isThisObj) {
+						var codeGetterSetter = 'self.prop("' + prop + '", function() { return getter(cache[prop]) || cache[prop]; }, function(__value){ cache[prop] = __value; setter(__value); }, ' + target + ')';
+						eval(codeGetterSetter);
+					} else {
+						// TODO:
+					}
 				}
 			} else {
 				throw new Error('can\'t bind undefined object');

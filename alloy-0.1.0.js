@@ -309,8 +309,11 @@ exports.AlloyJs.utils = (function(AlloyJs, $wnd, $doc){
 	function Utils(){}
 
 	Utils.prototype.isString = function(obj) {
-		var toString = Object.prototype.toString;
-		return toString.call(obj) == '[object String]';
+		return Object.prototype.toString.call( obj ) == '[object String]';
+	};
+
+	Utils.prototype.isArray = function(obj) {
+		return Object.prototype.toString.call( obj ) == '[object Array]';
 	};
 
 	Utils.prototype.guid = function() {
@@ -448,12 +451,57 @@ exports.AlloyJs.parser = (function(AlloyJs, $wnd, $doc){
 
 })(exports.AlloyJs, $wnd, $doc);
 
+// ===================== Proxies =====================
+
+function ArrayProxy(handler, original) {
+	var self = this;
+   	this.original = original;
+
+   	["push", 
+   	 "pop", 
+   	 "concat", 
+   	 "every", 
+   	 "filter", 
+   	 "forEach", 
+   	 "indexOf", 
+   	 "join", 
+   	 "lastIndexOf", 
+   	 "map", 
+   	 "pop", 
+   	 "push", 
+   	 "reduce", 
+   	 "reduceRight", 
+   	 "reverse", 
+   	 "shift", 
+   	 "slice", 
+   	 "some", 
+   	 "sort", 
+   	 "splice", 
+   	 "unshift", 
+   	 "isArray"].forEach(function(fn){
+   		eval('self.'+fn+' = function() { var value = self.original.'+fn+'.apply(self.original, arguments); handler(); return value; };');
+   	});
+
+	Object.defineProperty(this, 'length', {
+	    get: function(){ return self.original.length; },
+	    set: function(value){ self.original.length = value; }
+	});
+}
+
+// ===================== end Proxies =====================
+
 // ObjectBinder
 exports.AlloyJs.ob = (function(AlloyJs, $wnd, $doc){
 
 	function ObjectBinder(){}
 
 	var cache = {};
+
+	function createArrayProxy(expression, callback, oldObject, ctx) {
+		var newArray = null;
+		eval('with(ctx) { newArray = new ArrayProxy(function(){callback('+expression+')}, oldObject); }');
+		return newArray;
+	}
 
 	ObjectBinder.prototype.prop = function(id, getter, setter, ctx) {
 		ctx = ctx || window;
@@ -474,18 +522,23 @@ exports.AlloyJs.ob = (function(AlloyJs, $wnd, $doc){
 			var target = ('ctx.' + id).substr(0, ('ctx.' + id).lastIndexOf('.'));
 			var prop = parts[parts.length - 1];
 
-			if(target + '.' + prop) {
-				eval('cache[prop] = ' + target + '.' + prop);
-
-				var isThisObj = false;
-				eval('isThisObj = delete ' + target + '.' + prop);
-
-				if(isThisObj) {
-					var codeGetterSetter = 'self.prop("' + prop + '", function() { return getter(cache[prop]) || cache[prop]; }, function(__value){ cache[prop] = __value; setter(__value); }, ' + target + ')';//target + '.__defineGetter__("' + prop + '", function() { return getter(cache[prop]) || cache[prop]; } );';
-					eval(codeGetterSetter);
+			eval('var propObject = ' + target + '.' + prop);
+			eval('var targetObject = ' + target);
+			if(propObject) {
+				if($al.utils.isArray(targetObject)) {
+					eval(target + ' = createArrayProxy(id, setter, targetObject, ctx)');
 				} else {
-					// TODO:
-					//throw new Error('can\'t bind var declaration objects');	
+					eval('cache[prop] = ' + target + '.' + prop);
+
+					var isThisObj = false;
+					eval('isThisObj = delete ' + target + '.' + prop);
+
+					if(isThisObj) {
+						var codeGetterSetter = 'self.prop("' + prop + '", function() { return getter(cache[prop]) || cache[prop]; }, function(__value){ cache[prop] = __value; setter(__value); }, ' + target + ')';//target + '.__defineGetter__("' + prop + '", function() { return getter(cache[prop]) || cache[prop]; } );';
+						eval(codeGetterSetter);
+					} else {
+						// TODO:
+					}
 				}
 			} else {
 				throw new Error('can\'t bind undefined object');
@@ -501,9 +554,13 @@ exports.AlloyJs.ob = (function(AlloyJs, $wnd, $doc){
 
 // Core
 
-exports.AlloyJs.applyStr = function(str, ctx){
+exports.AlloyJs.applyStr = function(str, ctx) {
 	var self = this;
 	ctx = ctx || window;
+
+	if(!this.utils.isString(str))
+		return str;
+
 	var parsedStrResult = this.parser.parseString(str);
 
 	if(parsedStrResult.tokens) {
@@ -512,7 +569,6 @@ exports.AlloyJs.applyStr = function(str, ctx){
 
 			for(var i = 0; i < parsedStrResult.tokens.length; i++) {
 				var token = parsedStrResult.tokens[i];
-				console.log('var val = self.utils.evaluate( "' + token.token + '", ctx) ');
 				eval('var val = self.utils.evaluate( "' + token.token + '", ctx) ');
 				parsedStr = parsedStr.replace(token.id, val);
 			}
@@ -524,7 +580,24 @@ exports.AlloyJs.applyStr = function(str, ctx){
 	return str;
 }
 
-exports.AlloyJs.apply = function(el, ctx){
+var pubSub = {
+	cache: {},
+	on: function(context, id, callback) {
+		if(!this.cache[context])
+			this.cache[context] = {};
+		this.cache[context][id] = callback;
+	},
+	trigger: function(context, id, value) {
+		if(this.cache[context]){
+			var callback = this.cache[context][id];
+			if(callback) {
+				callback(id, value);
+			}
+		}
+	}
+}
+
+exports.AlloyJs.apply = function(el, ctx) {
 	var self = this;
 	ctx = ctx || window;
 	var html = el.innerHTML;
@@ -534,6 +607,11 @@ exports.AlloyJs.apply = function(el, ctx){
 	for(var i = 0; i < self.binds.length; i++){
 		var bind = self.binds[i];
 		html = html.replace(new RegExp('\{\{' + bind.property + '\}\}'), '<span id="_' + bind.html_id + '"></span>');
+		eval('pubSub.on(ctx, bind.html_id, function(id, value){ '
+			+ 'var el = self.hq.get("_" + id); '
+			+ 'el.textContent = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) ); '
+			+ 'el.innerText = self.applyStr( self.utils.evaluate( "' + bind.property + '", ctx) ); '
+		+ ' });');
 	}
 
 	el.innerHTML = html;
@@ -548,9 +626,10 @@ exports.AlloyJs.apply = function(el, ctx){
 
 		eval('self.ob.bind("' + bind.property + '", '
 			+ 'function(value){ return value; }, '
-			+ 'function( value ){ var el = self.hq.get("_' + bind.html_id + '"); el.textContent = self.applyStr(value); el.innerText = self.applyStr(value); }, ctx );');
+			+ 'function( value ){ pubSub.trigger(ctx, "' + bind.html_id + '", value); }, ctx );');
 	}
 }
+
 
 function init() {
 	var inits = $al.hq.getByAttribute('data-al-init');

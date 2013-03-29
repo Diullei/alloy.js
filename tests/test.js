@@ -158,4 +158,8 @@ test( "should bind a prop14 object to #el_prop14 element and evaluate the value"
 	$al.apply($al.oq.get('el_prop14'));
 
   	regexEqual($al.hq.get('el_prop14').innerHTML, /hello <i><span id="(.+)">3<\/span>!<\/i>/ig);
+
+  	prop14.push("d");
+
+	regexEqual($al.hq.get('el_prop14').innerHTML, /hello <i><span id="(.+)">4<\/span>!<\/i>/ig);  	
 });

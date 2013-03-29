@@ -17,6 +17,7 @@ var compilerSources = [
 	"objectQuery.js",
 	"htmlQuery.js",
 	"parser.js",
+	"proxies.js",
 	"objectBinder.js",
 	"core.js",
 	"end.js"

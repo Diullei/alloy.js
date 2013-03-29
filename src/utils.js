@@ -5,8 +5,11 @@ exports.AlloyJs.utils = (function(AlloyJs, $wnd, $doc){
 	function Utils(){}
 
 	Utils.prototype.isString = function(obj) {
-		var toString = Object.prototype.toString;
-		return toString.call(obj) == '[object String]';
+		return Object.prototype.toString.call( obj ) == '[object String]';
+	};
+
+	Utils.prototype.isArray = function(obj) {
+		return Object.prototype.toString.call( obj ) == '[object Array]';
 	};
 
 	Utils.prototype.guid = function() {
