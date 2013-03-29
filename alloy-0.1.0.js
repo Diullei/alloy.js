@@ -534,7 +534,7 @@ exports.AlloyJs.ob = (function(AlloyJs, $wnd, $doc){
 					eval('isThisObj = delete ' + target + '.' + prop);
 
 					if(isThisObj) {
-						var codeGetterSetter = 'self.prop("' + prop + '", function() { return getter(cache[prop]) || cache[prop]; }, function(__value){ cache[prop] = __value; setter(__value); }, ' + target + ')';//target + '.__defineGetter__("' + prop + '", function() { return getter(cache[prop]) || cache[prop]; } );';
+						var codeGetterSetter = 'self.prop("' + prop + '", function() { return getter(cache[prop]) || cache[prop]; }, function(__value){ cache[prop] = __value; setter(__value); }, ' + target + ')';
 						eval(codeGetterSetter);
 					} else {
 						// TODO:
