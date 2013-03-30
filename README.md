@@ -9,7 +9,8 @@ A javascript library to dynamic binding.
 
 ## One-way data binding
 
-the goal of this freature is aims you to inject data in your html using {{expression}}. 
+The goal of this feature is allow you to inject data in your html using {{expression}}. 
+
 Example:
 
 ```html
@@ -30,7 +31,7 @@ Example:
 
 [See on jsfiddler](http://jsfiddle.net/UXJV4/)
 
-The template expression above is a one-way data binding. It sets up automatic monitoring of the data, and ensures that the UI stays up-to-date when the data’s value changes.
+The template expression above is a one-way data binding. It sets up automatic monitoring of the data, and ensures that the html stays up-to-date when the data’s value changes.
 
 Another example:
 
