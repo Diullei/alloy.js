@@ -311,7 +311,7 @@
 	}
 })();(function(exports, $wnd, $doc){
 
-exports.$al = exports.AlloyJs = { version: '0.1.0' };
+	exports.$al = exports.AlloyJs = { version: '0.1.0' };
 
 
 // Utils
@@ -325,6 +325,10 @@ exports.AlloyJs.utils = (function(AlloyJs, $wnd, $doc){
 
 	Utils.prototype.isArray = function(obj) {
 		return Object.prototype.toString.call( obj ) == '[object Array]';
+	};
+
+	Utils.prototype.isDate = function(obj) {
+		return Object.prototype.toString.call( obj ) == '[object Date]';
 	};
 
 	Utils.prototype.guid = function() {
@@ -437,7 +441,6 @@ exports.AlloyJs.parser = (function(AlloyJs, $wnd, $doc){
 
 	function parseAttributes(id, data, attrib, content) {
 		if(attrib == 'data-al-bind') {
-			console.log(content.trim());
 			data.binds.push({
 				type: 'al-bind',
 				property: content.trim(),
@@ -462,10 +465,13 @@ exports.AlloyJs.parser = (function(AlloyJs, $wnd, $doc){
 			    out.text += "<" + tag;
 
 			    for ( var i = 0; i < attrs.length; i++ ) {
-			    	handled = parseAttributes(id, data, attrs[i].name, attrs[i].escaped);
+			    	var flg = parseAttributes(id, data, attrs[i].name, attrs[i].escaped);
+			    	if(flg) {
+			    		handled = flg;
+			    	}
 				    out.text += " " + attrs[i].name + '="' + attrs[i].escaped + '"';
 				}
-			 
+
 				if(handled) {
 					out.text += ' id="_' + id + '"';
 				}
@@ -547,7 +553,7 @@ function ArrayProxy(handler, original) {
    		eval('self.'+fn+' = function() { var value = self.original.'+fn+'.apply(self.original, arguments); handler(); return value; };');
    	});
 
-   	 self.getArray = function(){
+   	 self.getOriginal = function(){
    	 	return self.original;
    	 }
 
@@ -555,6 +561,97 @@ function ArrayProxy(handler, original) {
 	    get: function(){ return self.original.length; },
 	    set: function(value){ self.original.length = value; }
 	});
+}
+
+function StringProxy(handler, original) {
+	var self = this;
+   	this.original = original;
+
+   	["charAt", 
+   	 "charCodeAt", 
+   	 "concat", 
+   	 "fromCharCode", 
+   	 "indexOf", 
+   	 "lastIndexOf", 
+   	 "match", 
+   	 "replace", 
+   	 "search", 
+   	 "slice", 
+   	 "split", 
+   	 "substr", 
+   	 "substring", 
+   	 "toLowerCase", 
+   	 "toUpperCase", 
+   	 "valueOf"].forEach(function(fn){
+   		eval('self.'+fn+' = function() { var value = self.original.'+fn+'.apply(self.original, arguments); handler(); return value; };');
+   	});
+
+   	 self.getOriginal = function(){
+   	 	return self.original;
+   	 }
+
+	Object.defineProperty(this, 'length', {
+	    get: function(){ return self.original.length; },
+	    set: function(value){ self.original.length = value; }
+	});
+}
+
+function DateProxy(handler, original) {
+	var self = this;
+   	this.original = original;
+
+   	["getDate", 
+   	 "getDay", 
+   	 "getFullYear", 
+   	 "getHours", 
+   	 "getMilliseconds", 
+   	 "getMinutes", 
+   	 "getMonth", 
+   	 "getSeconds", 
+   	 "getTime", 
+   	 "getTimezoneOffset", 
+   	 "getUTCDate", 
+   	 "getUTCDay", 
+   	 "getUTCFullYear", 
+   	 "getUTCHours", 
+   	 "getUTCMilliseconds",
+   	 "getUTCMinutes",
+   	 "getUTCMonth",
+   	 "getUTCSeconds",
+   	 "parse",
+   	 "setDate",
+   	 "setFullYear",
+   	 "setHours",
+   	 "setMilliseconds",
+   	 "setMinutes",
+   	 "setMonth",
+   	 "setSeconds",
+   	 "setTime",
+   	 "setUTCDate",
+   	 "setUTCFullYear",
+   	 "setUTCHours",
+   	 "setUTCMinutes",
+   	 "setUTCMonth",
+   	 "setUTCSeconds",
+   	 "toDateString",
+   	 "setYear",
+   	 "toISOString",
+   	 "toJSON",
+   	 "toLocaleDateString",
+   	 "toLocaleTimeString",
+   	 "toLocaleString",
+   	 "toString",
+   	 "toTimeString",
+   	 "toUTCString",
+   	 "UTC",
+   	 "valueOf",
+   	 "valueOf"].forEach(function(fn){
+   		eval('self.'+fn+' = function() { var value = self.original.'+fn+'.apply(self.original, arguments); handler(); return value; };');
+   	});
+
+   	 self.getOriginal = function(){
+   	 	return self.original;
+   	 }
 }
 
 // ===================== end Proxies =====================
@@ -570,6 +667,18 @@ exports.AlloyJs.ob = (function(AlloyJs, $wnd, $doc){
 		var newArray = null;
 		eval('with(ctx) { newArray = new ArrayProxy(function(){callback('+expression+')}, oldObject); }');
 		return newArray;
+	}
+
+	function createStringProxy(expression, callback, oldObject, ctx) {
+		var newString = null;
+		eval('with(ctx) { newString = new StringProxy(function(){callback('+expression+')}, oldObject); }');
+		return newString;
+	}
+
+	function createDateProxy(expression, callback, oldObject, ctx) {
+		var newDate = null;
+		eval('with(ctx) { newDate = new DateProxy(function(){callback('+expression+')}, oldObject); }');
+		return newDate;
 	}
 
 	ObjectBinder.prototype.prop = function(id, getter, setter, ctx) {
@@ -591,25 +700,18 @@ exports.AlloyJs.ob = (function(AlloyJs, $wnd, $doc){
 			var target = ('ctx.' + id).substr(0, ('ctx.' + id).lastIndexOf('.'));
 			var prop = parts[parts.length - 1];
 
-			eval('var propObject = ' + target + '.' + prop);
-			eval('var targetObject = ' + target);
+			var propObject = null;
+			var targetObject = null;
+
+			eval('propObject = ' + target + '.' + prop);
+			eval('targetObject = ' + target);
 			if(propObject != undefined) {
 				if($al.utils.isArray(targetObject)) {
-					eval('cache[prop] = ' + target);
-
-					var isThisObj = false;
-					eval('isThisObj = delete ' + target);
-
-					if(isThisObj) {
-						(function(){
-							var proxy = createArrayProxy(id, setter, targetObject, ctx);
-							var codeGetterSetter = 'self.prop("' + target.split('.')[target.split('.').length - 1] + '", function() { return getter(proxy) || proxy; }, function(__value){ }, ' + target.substr(0, target.lastIndexOf('.')) + ')';
-							eval(codeGetterSetter);
-						})();
-					} else {
-						// TODO:
-					}
-
+					eval(target + ' = createArrayProxy(id, setter, targetObject, ctx)');
+				} else if($al.utils.isString(targetObject)) {
+					eval(target + ' = createStringProxy(id, setter, targetObject, ctx)');
+				} else if($al.utils.isDate(targetObject)) {
+					eval(target + ' = createDateProxy(id, setter, targetObject, ctx)');
 				} else {
 					eval('cache[prop] = ' + target + '.' + prop);
 
@@ -719,6 +821,9 @@ exports.AlloyJs.apply = function(el, ctx) {
 		} else if(bind.type == 'al-bind') {
 			var el = self.hq.get('_' + bind.html_id);
 			eval('el.addEventListener("change", function(){ with(ctx) {  ' + bind.property + ' = this.value; } });');
+			eval('el.addEventListener("keydown", function(){ with(ctx) {  ' + bind.property + ' = this.value; } });');
+			eval('el.addEventListener("keyup", function(){ with(ctx) {  ' + bind.property + ' = this.value; } });');
+			eval('el.addEventListener("keypress", function(){ with(ctx) {  ' + bind.property + ' = this.value; } });');
 		}
 	}
 }

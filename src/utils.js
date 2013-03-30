@@ -12,6 +12,10 @@ exports.AlloyJs.utils = (function(AlloyJs, $wnd, $doc){
 		return Object.prototype.toString.call( obj ) == '[object Array]';
 	};
 
+	Utils.prototype.isDate = function(obj) {
+		return Object.prototype.toString.call( obj ) == '[object Date]';
+	};
+
 	Utils.prototype.guid = function() {
 		return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
 		    var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);

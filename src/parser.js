@@ -39,7 +39,6 @@ exports.AlloyJs.parser = (function(AlloyJs, $wnd, $doc){
 
 	function parseAttributes(id, data, attrib, content) {
 		if(attrib == 'data-al-bind') {
-			console.log(content.trim());
 			data.binds.push({
 				type: 'al-bind',
 				property: content.trim(),
@@ -64,10 +63,13 @@ exports.AlloyJs.parser = (function(AlloyJs, $wnd, $doc){
 			    out.text += "<" + tag;
 
 			    for ( var i = 0; i < attrs.length; i++ ) {
-			    	handled = parseAttributes(id, data, attrs[i].name, attrs[i].escaped);
+			    	var flg = parseAttributes(id, data, attrs[i].name, attrs[i].escaped);
+			    	if(flg) {
+			    		handled = flg;
+			    	}
 				    out.text += " " + attrs[i].name + '="' + attrs[i].escaped + '"';
 				}
-			 
+
 				if(handled) {
 					out.text += ' id="_' + id + '"';
 				}

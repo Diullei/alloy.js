@@ -12,6 +12,18 @@ exports.AlloyJs.ob = (function(AlloyJs, $wnd, $doc){
 		return newArray;
 	}
 
+	function createStringProxy(expression, callback, oldObject, ctx) {
+		var newString = null;
+		eval('with(ctx) { newString = new StringProxy(function(){callback('+expression+')}, oldObject); }');
+		return newString;
+	}
+
+	function createDateProxy(expression, callback, oldObject, ctx) {
+		var newDate = null;
+		eval('with(ctx) { newDate = new DateProxy(function(){callback('+expression+')}, oldObject); }');
+		return newDate;
+	}
+
 	ObjectBinder.prototype.prop = function(id, getter, setter, ctx) {
 		ctx = ctx || window;
 
@@ -31,25 +43,18 @@ exports.AlloyJs.ob = (function(AlloyJs, $wnd, $doc){
 			var target = ('ctx.' + id).substr(0, ('ctx.' + id).lastIndexOf('.'));
 			var prop = parts[parts.length - 1];
 
-			eval('var propObject = ' + target + '.' + prop);
-			eval('var targetObject = ' + target);
+			var propObject = null;
+			var targetObject = null;
+
+			eval('propObject = ' + target + '.' + prop);
+			eval('targetObject = ' + target);
 			if(propObject != undefined) {
 				if($al.utils.isArray(targetObject)) {
-					eval('cache[prop] = ' + target);
-
-					var isThisObj = false;
-					eval('isThisObj = delete ' + target);
-
-					if(isThisObj) {
-						(function(){
-							var proxy = createArrayProxy(id, setter, targetObject, ctx);
-							var codeGetterSetter = 'self.prop("' + target.split('.')[target.split('.').length - 1] + '", function() { return getter(proxy) || proxy; }, function(__value){ }, ' + target.substr(0, target.lastIndexOf('.')) + ')';
-							eval(codeGetterSetter);
-						})();
-					} else {
-						// TODO:
-					}
-
+					eval(target + ' = createArrayProxy(id, setter, targetObject, ctx)');
+				} else if($al.utils.isString(targetObject)) {
+					eval(target + ' = createStringProxy(id, setter, targetObject, ctx)');
+				} else if($al.utils.isDate(targetObject)) {
+					eval(target + ' = createDateProxy(id, setter, targetObject, ctx)');
 				} else {
 					eval('cache[prop] = ' + target + '.' + prop);
 

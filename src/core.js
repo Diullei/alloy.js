@@ -83,6 +83,9 @@ exports.AlloyJs.apply = function(el, ctx) {
 		} else if(bind.type == 'al-bind') {
 			var el = self.hq.get('_' + bind.html_id);
 			eval('el.addEventListener("change", function(){ with(ctx) {  ' + bind.property + ' = this.value; } });');
+			eval('el.addEventListener("keydown", function(){ with(ctx) {  ' + bind.property + ' = this.value; } });');
+			eval('el.addEventListener("keyup", function(){ with(ctx) {  ' + bind.property + ' = this.value; } });');
+			eval('el.addEventListener("keypress", function(){ with(ctx) {  ' + bind.property + ' = this.value; } });');
 		}
 	}
 }
