@@ -28,7 +28,7 @@ Example:
 </html>
 ```
 
-[See on jsFiddler](#)
+[See on jsfiddler](http://jsfiddle.net/UXJV4/)
 
 The template expression above is a one-way data binding. It sets up automatic monitoring of the data, and ensures that the UI stays up-to-date when the data’s value changes.
 
@@ -51,7 +51,7 @@ Another example:
 </html>
 ```
 
-[See on jsFiddler](#)
+[See on jsfiddler](http://jsfiddle.net/7frX4/)
 
 ## Two-way data binding
 
@@ -75,6 +75,8 @@ Example:
 	</body>
 </html>
 ```
+
+[See on jsfiddler](http://jsfiddle.net/xYRkz/)
 
 ## Under construction
 
