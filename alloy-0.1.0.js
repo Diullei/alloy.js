@@ -657,85 +657,92 @@ function DateProxy(handler, original) {
 // ===================== end Proxies =====================
 
 // ObjectBinder
-exports.AlloyJs.ob = (function(AlloyJs, $wnd, $doc){
+(function (exports, $al, $wnd, $doc) {
+    var cache = {};
 
-	function ObjectBinder(){}
+    function createProxy(expression, callback, oldObject, ctx) {
+        var newObject = oldObject;
+        if ($al.utils.isArray(oldObject)) {
+            eval('with (ctx) { newObject = new ArrayProxy(function(){callback(' + expression + ')}, oldObject); }');
+        } else if ($al.utils.isString(oldObject)) {
+            eval('with (ctx) { newObject = new StringProxy(function(){callback(' + expression + ')}, oldObject); }');
+        } else if ($al.utils.isDate(oldObject)) {
+            eval('with (ctx) { newObject = new DateProxy(function(){callback(' + expression + ')}, oldObject); }');
+        }
+        return newObject;
+    }
 
-	var cache = {};
+    function ObjectBinder() {}
 
-	function createArrayProxy(expression, callback, oldObject, ctx) {
-		var newArray = null;
-		eval('with(ctx) { newArray = new ArrayProxy(function(){callback('+expression+')}, oldObject); }');
-		return newArray;
-	}
+    ObjectBinder.prototype.prop = function (id, getter, setter, ctx) {
+        ctx = ctx || $wnd;
 
-	function createStringProxy(expression, callback, oldObject, ctx) {
-		var newString = null;
-		eval('with(ctx) { newString = new StringProxy(function(){callback('+expression+')}, oldObject); }');
-		return newString;
-	}
+        Object.defineProperty(ctx, id, {
+            get: getter,
+            set: setter,
+        });
+    };
 
-	function createDateProxy(expression, callback, oldObject, ctx) {
-		var newDate = null;
-		eval('with(ctx) { newDate = new DateProxy(function(){callback('+expression+')}, oldObject); }');
-		return newDate;
-	}
+    ObjectBinder.prototype.bind = function (id, getter, setter, ctx) {
+        var self = this,
+            result = $al.oq.get(id),
+            ns = 'ctx.' + id,
+            parts = ns.split('.'),
+            propObject = null,
+            targetObject = null,
+            isThisObj = false,
+            strTargetObject = 'ctx',
+            strPropObject = 'ctx',
+            i;
 
-	ObjectBinder.prototype.prop = function(id, getter, setter, ctx) {
-		ctx = ctx || window;
+        ctx = ctx || $wnd;
 
-		Object.defineProperty(ctx, id, {
-		    get: getter,
-		    set: setter
-		});
-	}
+        targetObject = ctx;
+        propObject = ctx;
 
-	ObjectBinder.prototype.bind = function(id, getter, setter, ctx) {
-		var self = this;
-		ctx = ctx || window;
+        for (i = 1; i < parts.length; i += 1) {
+            strPropObject = parts[i];
+            if (i < parts.length - 1) {
+                propObject = propObject[parts[i]];
+                strTargetObject = parts[i];
+            }
+            if (i < parts.length - 2) {
+                targetObject = targetObject[parts[i]];
+            }
+        }
 
-		var result = $al.oq.get(id);
-		if(result !== undefined) {
-			var parts = ('ctx.' + id).split('.');
-			var target = ('ctx.' + id).substr(0, ('ctx.' + id).lastIndexOf('.'));
-			var prop = parts[parts.length - 1];
+        if (result !== undefined) {
 
-			var propObject = null;
-			var targetObject = null;
+            if (propObject[strPropObject] !== undefined) {
+                if ($al.utils.isArray(targetObject[strTargetObject]) || $al.utils.isString(targetObject[strTargetObject]) || $al.utils.isDate(targetObject[strTargetObject])) {
+                    targetObject[strTargetObject] = createProxy(id, setter, targetObject[strTargetObject], ctx);
+                } else {
+                    cache[strPropObject] = propObject[strPropObject];
+                    isThisObj = delete propObject[strPropObject];
 
-			eval('propObject = ' + target + '.' + prop);
-			eval('targetObject = ' + target);
-			if(propObject != undefined) {
-				if($al.utils.isArray(targetObject)) {
-					eval(target + ' = createArrayProxy(id, setter, targetObject, ctx)');
-				} else if($al.utils.isString(targetObject)) {
-					eval(target + ' = createStringProxy(id, setter, targetObject, ctx)');
-				} else if($al.utils.isDate(targetObject)) {
-					eval(target + ' = createDateProxy(id, setter, targetObject, ctx)');
-				} else {
-					eval('cache[prop] = ' + target + '.' + prop);
+                    if (isThisObj) {
+                        self.prop(strPropObject,
+                            function () {
+                                return getter(cache[strPropObject]) || cache[strPropObject];
+                            },
+                            function (value) {
+                                cache[strPropObject] = value;
+                                setter(value);
+                            },
+                            propObject);
+                    }
+                }
+            } else {
+                throw new Error('can\'t bind undefined object');
+            }
+        } else {
+            throw new Error('can\'t bind undefined object');
+        }
+    };
 
-					var isThisObj = false;
-					eval('isThisObj = delete ' + target + '.' + prop);
+    exports.AlloyJs.ob = new ObjectBinder();
 
-					if(isThisObj) {
-						var codeGetterSetter = 'self.prop("' + prop + '", function() { return getter(cache[prop]) || cache[prop]; }, function(__value){ cache[prop] = __value; setter(__value); }, ' + target + ')';
-						eval(codeGetterSetter);
-					} else {
-						// TODO:
-					}
-				}
-			} else {
-				throw new Error('can\'t bind undefined object');
-			}
-		} else {
-			throw new Error('can\'t bind undefined object');
-		}
-	};		
-
-	return new ObjectBinder();
-
-})(exports.AlloyJs, $wnd, $doc);
+}(exports, $al, $wnd, $doc));
 
 // Core
 
@@ -834,10 +841,15 @@ function init() {
 	setTimeout( function() {
 		var inits = $al.hq.getByAttribute('data-al-init');
 		for(var i = 0; i < inits.length; i++) {
-			$al.apply(inits[i]);
+			var context = null;
+			var attrValue = inits[i].getAttribute('data-al-init');
+			if(attrValue) {
+				context = $al.oq.get(attrValue);
+			}
+			$al.apply(inits[i], context);
 		}
 	}, 50);
 }
 window.addEventListener("load", init, false);
 
-})(window, window.document);
+})(window, window, window.document);
