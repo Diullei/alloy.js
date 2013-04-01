@@ -179,5 +179,8 @@ test( "should bind a prop15 object to #el_prop15 textbox element", function() {
 prop16 = {
 	name: 'Diullei',
 	value: 'some value',
-	context: 'object'
+	context: 'object',
+	name2: {
+		start: 'name2_start'
+	}
 }
